@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jogo da Memória</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>🧠 Jogo da Memória</h1>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">Jogadas</span>
+          <span class="stat-value" id="moves">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Tempo</span>
+          <span class="stat-value" id="timer">00:00</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Pares</span>
+          <span class="stat-value" id="pairs">0/8</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="controls">
+      <label for="difficulty">Dificuldade:</label>
+      <select id="difficulty">
+        <option value="4x4">Fácil (4x4)</option>
+        <option value="4x6">Médio (4x6)</option>
+        <option value="6x6">Difícil (6x6)</option>
+      </select>
+      <button id="restart">🔄 Reiniciar</button>
+    </div>
+
+    <div class="board" id="board"></div>
+
+    <div class="win-overlay" id="winOverlay">
+      <div class="win-card">
+        <h2>🎉 Você venceu!</h2>
+        <p id="winStats"></p>
+        <button id="playAgain">Jogar novamente</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
