@@ -2,51 +2,1312 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jogo da Memória</title>
-<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0b0f14">
+<title>Contagem Hi-Lo · Treino de Blackjack</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0a0e14;
+  --panel:#131a24;
+  --panel2:#1a2330;
+  --border:#26313f;
+  --text:#e9eef4;
+  --muted:#8a97a8;
+  --accent:#2fbf71;
+  --accent2:#3b8ef0;
+  --bad:#e5484d;
+  --warn:#e0a72e;
+  --gold:#d4af37;
+  --purple:#a56bf0;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:radial-gradient(ellipse at top,#101823 0%,#070a0f 60%);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  min-height:100vh;
+  -webkit-tap-highlight-color:transparent;
+}
+.app{max-width:640px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+.topbar{
+  padding:14px 16px 10px;
+  text-align:center;
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:rgba(10,14,20,.92);backdrop-filter:blur(6px);z-index:20;
+}
+.topbar h1{margin:0;font-size:1.15rem;letter-spacing:.02em;color:var(--gold);}
+.topbar .sub{font-size:.72rem;color:var(--muted);margin-top:2px;}
+main{flex:1;padding:14px 12px 90px;}
+.panel{display:none;}
+.panel.active{display:block;animation:fadein .18s ease;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+h2.section-title{font-size:1rem;color:var(--gold);margin:0 0 10px;display:flex;align-items:center;gap:6px;}
+.card-block{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:14px;}
+.card-block .label{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;}
+
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;}
+.btn{
+  appearance:none;border:1px solid var(--border);background:var(--panel2);color:var(--text);
+  border-radius:12px;padding:12px 14px;font-size:.95rem;font-weight:600;cursor:pointer;
+  min-height:48px;flex:1 1 auto;text-align:center;transition:transform .08s,background .15s,border-color .15s;
+}
+.btn:active{transform:scale(.96);}
+.btn.small{flex:0 0 auto;padding:10px 14px;font-size:.85rem;min-height:42px;}
+.btn.selected{background:var(--accent);border-color:var(--accent);color:#04140b;}
+.btn.primary{background:var(--accent2);border-color:var(--accent2);color:#04101f;font-size:1.02rem;min-height:54px;}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:#210404;}
+.btn.ghost{background:transparent;}
+.btn:disabled{opacity:.3;pointer-events:none;}
+.btn-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.btn-grid.cols3{grid-template-columns:repeat(3,1fr);}
+.btn-grid.cols5{grid-template-columns:repeat(5,1fr);gap:6px;}
+.btn-grid .btn{min-height:52px;font-size:.82rem;padding:8px 6px;}
+
+.table-felt{background:radial-gradient(ellipse at center,#0f3d27 0%,#082015 100%);border:1px solid #1e5b3c;border-radius:16px;padding:18px 12px;text-align:center;}
+.hand-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;min-height:96px;align-items:center;}
+.card{width:58px;height:82px;background:#fdfdfb;border-radius:8px;box-shadow:0 3px 8px rgba(0,0,0,.4);
+  display:flex;flex-direction:column;justify-content:space-between;padding:5px 6px;font-weight:800;
+  animation:dealcard .25s ease;}
+@keyframes dealcard{from{transform:translateY(-16px) scale(.85);opacity:0;}to{transform:translateY(0) scale(1);opacity:1;}}
+.card.red{color:#c8102e;}
+.card.black{color:#1a1a1a;}
+.card .r{font-size:1.05rem;line-height:1;}
+.card .s{font-size:1.3rem;line-height:1;align-self:flex-end;}
+.card-back{width:58px;height:82px;border-radius:8px;background:repeating-linear-gradient(45deg,#3b1f6b,#3b1f6b 6px,#2a1550 6px,#2a1550 12px);border:2px solid #5a3fb0;box-shadow:0 3px 8px rgba(0,0,0,.4);}
+.hand-total{margin-top:8px;font-size:.85rem;color:#bfe9d4;font-weight:700;letter-spacing:.03em;}
+.hand-label{font-size:.68rem;color:#8fd4ac;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;}
+
+.big-number{font-size:2.6rem;font-weight:800;text-align:center;letter-spacing:.02em;}
+.big-number.pos{color:var(--accent);}
+.big-number.neg{color:var(--bad);}
+.big-number.zero{color:var(--text);}
+.center{text-align:center;}
+.muted{color:var(--muted);font-size:.82rem;}
+
+.feedback{border-radius:12px;padding:12px 14px;margin-top:10px;font-size:.9rem;line-height:1.4;display:none;}
+.feedback.show{display:block;animation:fadein .2s ease;}
+.feedback.correct{background:rgba(47,191,113,.14);border:1px solid var(--accent);}
+.feedback.wrong{background:rgba(229,72,77,.14);border:1px solid var(--bad);}
+.feedback .fbtitle{font-weight:800;margin-bottom:4px;}
+.feedback.correct .fbtitle{color:var(--accent);}
+.feedback.wrong .fbtitle{color:var(--bad);}
+.deviation-tag{display:inline-block;background:var(--purple);color:#fff;font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;margin-bottom:6px;}
+
+.action-btn{position:relative;}
+.action-btn.correct-mark{outline:3px solid var(--accent);}
+.action-btn.wrong-mark{outline:3px solid var(--bad);}
+
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.stat-tile{background:var(--panel2);border-radius:10px;padding:10px 6px;text-align:center;}
+.stat-tile .v{font-size:1.25rem;font-weight:800;color:var(--gold);}
+.stat-tile .k{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+
+table.strategy{width:100%;border-collapse:collapse;font-size:.72rem;table-layout:fixed;}
+table.strategy th,table.strategy td{border:1px solid var(--border);text-align:center;padding:6px 2px;}
+table.strategy th{background:var(--panel2);color:var(--muted);font-weight:700;position:sticky;top:0;}
+table.strategy td{cursor:pointer;font-weight:800;color:#04140b;}
+table.strategy td.rowhead{background:var(--panel2);color:var(--text);cursor:default;font-weight:700;}
+.act-h{background:#e5484d;}
+.act-s{background:#2fbf71;}
+.act-d{background:#3b8ef0;}
+.act-p{background:#a56bf0;}
+.act-r{background:#e0a72e;}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:.72rem;}
+.legend span{display:flex;align-items:center;gap:4px;}
+.legend i{width:12px;height:12px;border-radius:3px;display:inline-block;}
+
+.bottomnav{
+  position:fixed;left:0;right:0;bottom:0;
+  max-width:640px;margin:0 auto;
+  display:flex;background:rgba(15,20,28,.97);border-top:1px solid var(--border);backdrop-filter:blur(8px);z-index:30;
+  padding-bottom:env(safe-area-inset-bottom,0);
+}
+.navbtn{flex:1;background:none;border:none;color:var(--muted);padding:9px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.62rem;cursor:pointer;}
+.navbtn .ic{font-size:1.25rem;}
+.navbtn.active{color:var(--accent);}
+
+.result-line{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:.85rem;}
+.result-line:last-child{border-bottom:none;}
+.pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;}
+.pill.win{background:rgba(47,191,113,.2);color:var(--accent);}
+.pill.lose{background:rgba(229,72,77,.2);color:var(--bad);}
+.pill.push{background:rgba(224,167,46,.2);color:var(--warn);}
+
+#statsChart{width:100%!important;max-height:220px;}
+.history-item{display:flex;justify-content:space-between;font-size:.78rem;padding:7px 0;border-bottom:1px solid var(--border);}
+.history-item .tp{color:var(--muted);}
+</style>
 </head>
 <body>
-  <div class="app">
-    <header>
-      <h1>🧠 Jogo da Memória</h1>
-      <div class="stats">
-        <div class="stat">
-          <span class="stat-label">Jogadas</span>
-          <span class="stat-value" id="moves">0</span>
+<div class="app">
+  <header class="topbar">
+    <h1>🃏 Contagem Hi-Lo</h1>
+    <div class="sub">Treino de contagem de cartas para Blackjack</div>
+  </header>
+
+  <main id="main">
+
+    <!-- PANEL 1: DRILL -->
+    <section class="panel active" id="panel-drill">
+      <h2 class="section-title">🎯 Prática de Contagem</h2>
+
+      <div class="card-block" id="drillConfig">
+        <div class="label">Número de baralhos</div>
+        <div class="btn-row" id="drillDecksRow"></div>
+        <div class="label" style="margin-top:12px;">Velocidade por carta</div>
+        <div class="btn-row" id="drillSpeedRow"></div>
+        <div class="label" style="margin-top:12px;">Quantidade de cartas</div>
+        <div class="btn-row" id="drillCountRow"></div>
+        <button class="btn primary" style="margin-top:14px;width:100%;" data-action="drillStart">▶️ Iniciar Treino</button>
+      </div>
+
+      <div class="table-felt" id="drillPlayArea" style="display:none;">
+        <div class="hand-label" id="drillProgress">Carta 0/0</div>
+        <div class="hand-row" id="drillCardDisplay"></div>
+      </div>
+      <div class="btn-row" id="drillStopRow" style="display:none;margin-top:10px;">
+        <button class="btn danger" data-action="drillStop" style="width:100%;">⏹ Parar</button>
+      </div>
+
+      <div class="card-block" id="drillGuessSection" style="display:none;">
+        <div class="label">Qual a sua contagem corrida?</div>
+        <div class="big-number zero" id="drillGuessValue">0</div>
+        <div class="btn-row" style="margin-top:10px;">
+          <button class="btn" data-action="drillGuessMinus">➖ -1</button>
+          <button class="btn" data-action="drillGuessPlus">➕ +1</button>
         </div>
-        <div class="stat">
-          <span class="stat-label">Tempo</span>
-          <span class="stat-value" id="timer">00:00</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Pares</span>
-          <span class="stat-value" id="pairs">0/8</span>
+        <button class="btn primary" style="margin-top:10px;width:100%;" data-action="drillConfirmGuess">✅ Confirmar e Revelar</button>
+      </div>
+
+      <div class="card-block" id="drillResult" style="display:none;"></div>
+    </section>
+
+    <!-- PANEL 2: ADVISOR -->
+    <section class="panel" id="panel-advisor">
+      <h2 class="section-title">🧭 Assistente de Próxima Jogada</h2>
+
+      <div class="card-block">
+        <div class="btn-row">
+          <button class="btn small" data-action="advisorNewHand">🂠 Nova Mão</button>
+          <button class="btn small" data-action="advisorRandomCount">🎲 Contagem Aleatória</button>
+          <button class="btn small ghost" data-action="advisorGotoCalc">✏️ Ajustar Contagem</button>
         </div>
       </div>
-    </header>
 
-    <div class="controls">
-      <label for="difficulty">Dificuldade:</label>
-      <select id="difficulty">
-        <option value="4x4">Fácil (4x4)</option>
-        <option value="4x6">Médio (4x6)</option>
-        <option value="6x6">Difícil (6x6)</option>
-      </select>
-      <button id="restart">🔄 Reiniciar</button>
-    </div>
-
-    <div class="board" id="board"></div>
-
-    <div class="win-overlay" id="winOverlay">
-      <div class="win-card">
-        <h2>🎉 Você venceu!</h2>
-        <p id="winStats"></p>
-        <button id="playAgain">Jogar novamente</button>
+      <div class="table-felt">
+        <div class="hand-label">Carta do Dealer</div>
+        <div class="hand-row" id="advisorDealerHand"></div>
+        <div class="hand-label" style="margin-top:14px;">Contagem Verdadeira Atual</div>
+        <div class="big-number" id="advisorTrueCount">+0.0</div>
+        <div class="hand-label" style="margin-top:14px;">Sua Mão</div>
+        <div class="hand-row" id="advisorPlayerHand"></div>
+        <div class="hand-total" id="advisorPlayerTotal"></div>
       </div>
-    </div>
-  </div>
 
-  <script src="script.js"></script>
+      <div class="btn-grid cols5" style="margin-top:12px;" id="advisorActions">
+        <button class="btn action-btn" data-action="advisorAction" data-value="hit">Pedir</button>
+        <button class="btn action-btn" data-action="advisorAction" data-value="stand">Parar</button>
+        <button class="btn action-btn" data-action="advisorAction" data-value="double">Dobrar</button>
+        <button class="btn action-btn" data-action="advisorAction" data-value="split">Dividir</button>
+        <button class="btn action-btn" data-action="advisorAction" data-value="surrender">Desistir</button>
+      </div>
+      <button class="btn ghost" style="width:100%;margin-top:8px;" data-action="advisorReveal">💡 Me diga a jogada certa</button>
+
+      <div class="feedback" id="advisorFeedback"></div>
+
+      <div class="card-block" style="margin-top:14px;">
+        <div class="stat-grid">
+          <div class="stat-tile"><div class="v" id="advisorScore">0/0</div><div class="k">Acertos</div></div>
+          <div class="stat-tile"><div class="v" id="advisorPct">—</div><div class="k">% Correto</div></div>
+          <div class="stat-tile"><button class="btn small" data-action="advisorResetSession" style="min-height:38px;">💾 Salvar</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: CALCULADORA -->
+    <section class="panel" id="panel-calc">
+      <h2 class="section-title">🧮 Calculadora de Contagem Verdadeira</h2>
+
+      <div class="card-block">
+        <div class="label">Contagem Corrida</div>
+        <div class="big-number" id="calcRunning">0</div>
+        <div class="btn-row" style="margin-top:10px;">
+          <button class="btn danger" data-action="calcCount" data-value="-1">➖ -1 (carta alta)</button>
+          <button class="btn" data-action="calcCount" data-value="0">◾ 0 (neutra)</button>
+          <button class="btn" data-action="calcCount" data-value="1" style="background:var(--accent);border-color:var(--accent);color:#04140b;">➕ +1 (carta baixa)</button>
+        </div>
+        <button class="btn ghost" style="width:100%;margin-top:8px;" data-action="calcReset">🔄 Zerar contagem</button>
+      </div>
+
+      <div class="card-block">
+        <div class="label">Baralhos Restantes no Sapato</div>
+        <div class="btn-grid cols5" id="calcDecksRow"></div>
+      </div>
+
+      <div class="table-felt">
+        <div class="hand-label">Contagem Verdadeira</div>
+        <div class="big-number" id="calcTrueCount">+0.0</div>
+      </div>
+
+      <div class="card-block">
+        <div class="label">Bet Spread</div>
+        <div class="btn-row">
+          <button class="btn" data-action="calcSpread" data-value="conservative">🛡️ Conservador (1-4x)</button>
+          <button class="btn" data-action="calcSpread" data-value="aggressive">🔥 Agressivo (1-12x)</button>
+        </div>
+        <div class="hand-label" style="margin-top:14px;text-align:center;">Aposta Sugerida</div>
+        <div class="big-number pos" id="calcBetSuggestion" style="text-align:center;">1 unidade</div>
+      </div>
+    </section>
+
+    <!-- PANEL 4: STRATEGY -->
+    <section class="panel" id="panel-strategy">
+      <h2 class="section-title">📊 Tabela de Estratégia Básica</h2>
+
+      <div class="btn-row">
+        <button class="btn small" data-action="stratTab" data-value="hard">Mãos Duras</button>
+        <button class="btn small" data-action="stratTab" data-value="soft">Mãos Suaves</button>
+        <button class="btn small" data-action="stratTab" data-value="pairs">Pares</button>
+      </div>
+
+      <div class="card-block" style="margin-top:12px;">
+        <div class="label">Carta do Dealer no topo · sua mão nas linhas · toque numa célula</div>
+        <div class="table-wrap"><table class="strategy" id="stratTable"></table></div>
+        <div class="legend">
+          <span><i style="background:var(--bad);"></i> Pedir</span>
+          <span><i style="background:var(--accent);"></i> Parar</span>
+          <span><i style="background:var(--accent2);"></i> Dobrar</span>
+          <span><i style="background:var(--purple);"></i> Dividir</span>
+          <span><i style="background:var(--warn);"></i> Desistir</span>
+        </div>
+      </div>
+
+      <div class="card-block" id="stratExplainBox" style="display:none;"></div>
+
+      <div class="card-block">
+        <button class="btn primary" style="width:100%;" data-action="stratQuizToggle" id="stratQuizBtn">🧠 Iniciar Modo Quiz</button>
+      </div>
+
+      <div id="stratQuizArea" style="display:none;">
+        <div class="table-felt">
+          <div class="hand-label">Carta do Dealer</div>
+          <div class="hand-row" id="quizDealerHand"></div>
+          <div class="hand-label" style="margin-top:14px;">Sua Mão</div>
+          <div class="hand-row" id="quizPlayerHand"></div>
+          <div class="hand-total" id="quizPlayerTotal"></div>
+        </div>
+        <div class="btn-grid cols5" style="margin-top:12px;" id="quizActions">
+          <button class="btn action-btn" data-action="stratQuizAction" data-value="hit">Pedir</button>
+          <button class="btn action-btn" data-action="stratQuizAction" data-value="stand">Parar</button>
+          <button class="btn action-btn" data-action="stratQuizAction" data-value="double">Dobrar</button>
+          <button class="btn action-btn" data-action="stratQuizAction" data-value="split">Dividir</button>
+          <button class="btn action-btn" data-action="stratQuizAction" data-value="surrender">Desistir</button>
+        </div>
+        <div class="feedback" id="quizFeedback"></div>
+        <div class="btn-row" style="margin-top:10px;">
+          <button class="btn" data-action="stratQuizNext">➡️ Próxima</button>
+          <button class="btn ghost" data-action="stratQuizReset">💾 Salvar e Sair</button>
+        </div>
+        <div class="card-block" style="margin-top:12px;">
+          <div class="stat-grid">
+            <div class="stat-tile"><div class="v" id="quizScore">0/0</div><div class="k">Acertos</div></div>
+            <div class="stat-tile"><div class="v" id="quizPct">—</div><div class="k">% Correto</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 5: TABLE SIMULATOR -->
+    <section class="panel" id="panel-table">
+      <h2 class="section-title">🃏 Simulador de Mesa</h2>
+
+      <div class="card-block" id="tableConfig">
+        <div class="label">Número de baralhos</div>
+        <div class="btn-row" id="tableDecksRow"></div>
+        <div class="label" style="margin-top:12px;">Penetração do sapato</div>
+        <div class="btn-row" id="tablePenetrationRow"></div>
+        <button class="btn primary" style="margin-top:14px;width:100%;" data-action="tableStart">▶️ Iniciar Mesa</button>
+      </div>
+
+      <div id="tableGameArea" style="display:none;">
+        <div class="btn-row">
+          <button class="btn small" data-action="tableToggleCount" id="tableToggleBtn">🙈 Mostrar Contagem</button>
+          <button class="btn small ghost" data-action="tableResetSession">🔄 Nova Sessão</button>
+        </div>
+
+        <div class="card-block" id="tableCountBox" style="display:none;">
+          <div class="btn-row">
+            <div style="flex:1;text-align:center;">
+              <div class="hand-label">Corrida</div>
+              <div class="big-number" id="tableRunning" style="font-size:1.6rem;">0</div>
+            </div>
+            <div style="flex:1;text-align:center;">
+              <div class="hand-label">Verdadeira</div>
+              <div class="big-number" id="tableTrueCount" style="font-size:1.6rem;">+0.0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-felt">
+          <div class="hand-label">Dealer</div>
+          <div class="hand-row" id="tableDealerHand"></div>
+          <div class="hand-total" id="tableDealerTotal"></div>
+          <div class="hand-label" style="margin-top:14px;" id="tableHandLabel">Sua Mão</div>
+          <div class="hand-row" id="tablePlayerHand"></div>
+          <div class="hand-total" id="tablePlayerTotal"></div>
+          <div class="muted" id="tableBetInfo" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="btn-grid cols5" style="margin-top:12px;" id="tableActions">
+          <button class="btn action-btn" data-action="tableAction" data-value="hit">Pedir</button>
+          <button class="btn action-btn" data-action="tableAction" data-value="stand">Parar</button>
+          <button class="btn action-btn" data-action="tableAction" data-value="double">Dobrar</button>
+          <button class="btn action-btn" data-action="tableAction" data-value="split">Dividir</button>
+          <button class="btn action-btn" data-action="tableAction" data-value="surrender">Desistir</button>
+        </div>
+
+        <div class="feedback" id="tableFeedback"></div>
+
+        <div class="card-block" id="tableResultBox" style="display:none;"></div>
+
+        <div class="btn-row" style="margin-top:10px;">
+          <button class="btn primary" style="width:100%;" data-action="tableDeal" id="tableDealBtn">🂠 Nova Mão</button>
+        </div>
+
+        <div class="card-block" style="margin-top:14px;">
+          <div class="label">Estatísticas da Sessão</div>
+          <div class="stat-grid">
+            <div class="stat-tile"><div class="v" id="tableHandsPlayed">0</div><div class="k">Mãos</div></div>
+            <div class="stat-tile"><div class="v" id="tablePlayPct">—</div><div class="k">% Jogadas Corretas</div></div>
+            <div class="stat-tile"><div class="v" id="tableUnits">0.0</div><div class="k">Unidades</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 6: STATS -->
+    <section class="panel" id="panel-stats">
+      <h2 class="section-title">📈 Painel de Desempenho</h2>
+
+      <div class="card-block">
+        <div class="stat-grid">
+          <div class="stat-tile"><div class="v" id="statsTotalSessions">0</div><div class="k">Sessões</div></div>
+          <div class="stat-tile"><div class="v" id="statsAvgCount">—</div><div class="k">Média Contagem</div></div>
+          <div class="stat-tile"><div class="v" id="statsAvgPlay">—</div><div class="k">Média Jogadas</div></div>
+        </div>
+      </div>
+
+      <div class="card-block">
+        <div class="label">Evolução ao Longo do Tempo</div>
+        <canvas id="statsChart"></canvas>
+      </div>
+
+      <div class="card-block">
+        <div class="label">Histórico de Sessões</div>
+        <div id="statsHistoryList"></div>
+      </div>
+
+      <button class="btn danger" style="width:100%;" data-action="statsClear">🗑️ Limpar Histórico</button>
+    </section>
+
+  </main>
+
+  <nav class="bottomnav" id="bottomnav">
+    <button class="navbtn active" data-action="nav" data-panel="drill"><span class="ic">🎯</span>Treino</button>
+    <button class="navbtn" data-action="nav" data-panel="advisor"><span class="ic">🧭</span>Jogada</button>
+    <button class="navbtn" data-action="nav" data-panel="calc"><span class="ic">🧮</span>Contagem</button>
+    <button class="navbtn" data-action="nav" data-panel="strategy"><span class="ic">📊</span>Estratégia</button>
+    <button class="navbtn" data-action="nav" data-panel="table"><span class="ic">🃏</span>Mesa</button>
+    <button class="navbtn" data-action="nav" data-panel="stats"><span class="ic">📈</span>Stats</button>
+  </nav>
+</div>
+
+<script>
+'use strict';
+
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const SUITS = [{s:'♠',color:'black'},{s:'♣',color:'black'},{s:'♥',color:'red'},{s:'♦',color:'red'}];
+const COLS = ['2','3','4','5','6','7','8','9','10','A'];
+const ACTION_LABELS = {hit:'Pedir',stand:'Parar',double:'Dobrar',split:'Dividir',surrender:'Desistir'};
+const HISTORY_KEY = 'hilo_trainer_history_v1';
+
+function blackjackValue(rank){
+  if (rank==='A') return 11;
+  if (rank==='J'||rank==='Q'||rank==='K') return 10;
+  return parseInt(rank,10);
+}
+function hiLoValue(rank){
+  if (['2','3','4','5','6'].includes(rank)) return 1;
+  if (['7','8','9'].includes(rank)) return 0;
+  return -1;
+}
+function dealerCol(rank){
+  if (rank==='A') return 'A';
+  if (['10','J','Q','K'].includes(rank)) return '10';
+  return rank;
+}
+function shuffle(arr){
+  const a = arr.slice();
+  for (let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function randomCard(){
+  const rank = RANKS[Math.floor(Math.random()*RANKS.length)];
+  const suit = SUITS[Math.floor(Math.random()*SUITS.length)];
+  return {rank, suit:suit.s, color:suit.color};
+}
+function makeShoe(numDecks){
+  const shoe=[];
+  for (let d=0;d<numDecks;d++){
+    for (const suit of SUITS){
+      for (const rank of RANKS){
+        shoe.push({rank, suit:suit.s, color:suit.color});
+      }
+    }
+  }
+  return shuffle(shoe);
+}
+function handTotal(cards){
+  let total=0, acesAs11=0;
+  for (const c of cards){
+    total += blackjackValue(c.rank);
+    if (c.rank==='A') acesAs11++;
+  }
+  while (total>21 && acesAs11>0){ total-=10; acesAs11--; }
+  return {total, soft: acesAs11>0, bust: total>21};
+}
+function pairKey(cards){
+  if (cards.length!==2) return null;
+  const v = r => ['10','J','Q','K'].includes(r) ? '10' : r;
+  const a=v(cards[0].rank), b=v(cards[1].rank);
+  return a===b ? a : null;
+}
+function fmtTC(tc){
+  const r = Math.round(tc*2)/2;
+  return (r>0?'+':'') + r.toFixed(1);
+}
+function cardHTML(card){
+  return `<div class="card ${card.color}"><div class="r">${card.rank}</div><div class="s">${card.suit}</div></div>`;
+}
+
+const HARD = {
+  8:  ['H','H','H','H','H','H','H','H','H','H'],
+  9:  ['H','D','D','D','D','H','H','H','H','H'],
+  10: ['D','D','D','D','D','D','D','D','H','H'],
+  11: ['D','D','D','D','D','D','D','D','D','H'],
+  12: ['H','H','S','S','S','H','H','H','H','H'],
+  13: ['S','S','S','S','S','H','H','H','H','H'],
+  14: ['S','S','S','S','S','H','H','H','H','H'],
+  15: ['S','S','S','S','S','H','H','H','Rh','H'],
+  16: ['S','S','S','S','S','H','H','Rh','Rh','Rh'],
+  17: ['S','S','S','S','S','S','S','S','S','S'],
+  18: ['S','S','S','S','S','S','S','S','S','S'],
+  19: ['S','S','S','S','S','S','S','S','S','S'],
+  20: ['S','S','S','S','S','S','S','S','S','S'],
+  21: ['S','S','S','S','S','S','S','S','S','S']
+};
+const SOFT = {
+  13: ['H','H','H','D','D','H','H','H','H','H'],
+  14: ['H','H','H','D','D','H','H','H','H','H'],
+  15: ['H','H','D','D','D','H','H','H','H','H'],
+  16: ['H','H','D','D','D','H','H','H','H','H'],
+  17: ['H','D','D','D','D','H','H','H','H','H'],
+  18: ['S','Ds','Ds','Ds','Ds','S','S','H','H','H'],
+  19: ['S','S','S','S','Ds','S','S','S','S','S'],
+  20: ['S','S','S','S','S','S','S','S','S','S']
+};
+const PAIRS = {
+  '2': ['P','P','P','P','P','P','H','H','H','H'],
+  '3': ['P','P','P','P','P','P','H','H','H','H'],
+  '4': ['H','H','H','P','P','H','H','H','H','H'],
+  '5': ['D','D','D','D','D','D','D','D','H','H'],
+  '6': ['P','P','P','P','P','H','H','H','H','H'],
+  '7': ['P','P','P','P','P','P','H','H','H','H'],
+  '8': ['P','P','P','P','P','P','P','P','P','P'],
+  '9': ['P','P','P','P','P','S','P','P','S','S'],
+  '10':['S','S','S','S','S','S','S','S','S','S'],
+  'A': ['P','P','P','P','P','P','P','P','P','P']
+};
+const DEVIATIONS = [
+  {total:16, dealer:'10', cmp:'>=', tc:0,  action:'stand',  desc:'16 contra 10'},
+  {total:15, dealer:'10', cmp:'>=', tc:4,  action:'stand',  desc:'15 contra 10'},
+  {pair:'10', dealer:'5', cmp:'>=', tc:5,  action:'split',  desc:'10,10 contra 5'},
+  {pair:'10', dealer:'6', cmp:'>=', tc:4,  action:'split',  desc:'10,10 contra 6'},
+  {total:9,  dealer:'2', cmp:'>=', tc:1,  action:'double', desc:'9 contra 2'},
+  {total:16, dealer:'9', cmp:'>=', tc:5,  action:'stand',  desc:'16 contra 9'},
+  {total:13, dealer:'2', cmp:'<=', tc:-1, action:'hit',    desc:'13 contra 2'},
+  {total:12, dealer:'3', cmp:'>=', tc:2,  action:'stand',  desc:'12 contra 3'},
+  {total:12, dealer:'2', cmp:'>=', tc:3,  action:'stand',  desc:'12 contra 2'},
+  {total:11, dealer:'A', cmp:'>=', tc:1,  action:'double', desc:'11 contra A'},
+  {total:9,  dealer:'7', cmp:'>=', tc:3,  action:'double', desc:'9 contra 7'},
+  {total:10, dealer:'A', cmp:'>=', tc:4,  action:'double', desc:'10 contra A'},
+  {total:13, dealer:'3', cmp:'<=', tc:-2, action:'hit',    desc:'13 contra 3'},
+  {total:12, dealer:'4', cmp:'<=', tc:0,  action:'hit',    desc:'12 contra 4'},
+  {total:12, dealer:'5', cmp:'<=', tc:-2, action:'hit',    desc:'12 contra 5'},
+  {total:12, dealer:'6', cmp:'<=', tc:-1, action:'hit',    desc:'12 contra 6'},
+  {total:15, dealer:'9', cmp:'>=', tc:2,  action:'stand',  desc:'15 contra 9'}
+];
+
+function resolveCode(code, opts){
+  switch(code){
+    case 'H': return 'hit';
+    case 'S': return 'stand';
+    case 'P': return opts.canSplit ? 'split' : 'hit';
+    case 'D': return opts.canDouble ? 'double' : 'hit';
+    case 'Ds': return opts.canDouble ? 'double' : 'stand';
+    case 'Rh': return opts.canSurrender ? 'surrender' : 'hit';
+    default: return 'hit';
+  }
+}
+function getBasicAction(cards, dealerRank, opts){
+  const col = COLS.indexOf(dealerCol(dealerRank));
+  const pk = opts.canSplit ? pairKey(cards) : null;
+  if (pk && PAIRS[pk]) return resolveCode(PAIRS[pk][col], opts);
+  const {total, soft} = handTotal(cards);
+  if (soft && SOFT[total]) return resolveCode(SOFT[total][col], opts);
+  const clamped = Math.max(8, Math.min(21, total));
+  return resolveCode(HARD[clamped][col], opts);
+}
+function getAdjustedAction(cards, dealerRank, trueCount, opts){
+  const basic = getBasicAction(cards, dealerRank, opts);
+  if (cards.length!==2) return {action:basic, deviation:null};
+  const col = dealerCol(dealerRank);
+  const pk = opts.canSplit ? pairKey(cards) : null;
+  const {total, soft} = handTotal(cards);
+  for (const dev of DEVIATIONS){
+    if (dev.dealer !== col) continue;
+    if (dev.pair){ if (pk !== dev.pair) continue; }
+    else { if (pk) continue; if (dev.total !== total || soft) continue; }
+    const meets = dev.cmp==='>=' ? trueCount >= dev.tc : trueCount <= dev.tc;
+    if (meets){
+      let act = dev.action;
+      if (act==='double' && !opts.canDouble) act='hit';
+      if (act==='split' && !opts.canSplit) act='hit';
+      return {action:act, deviation:dev};
+    }
+  }
+  return {action:basic, deviation:null};
+}
+function explainBasic(cards, dealerRank, action){
+  const {total, soft} = handTotal(cards);
+  const pk = pairKey(cards);
+  if (pk){
+    const label = pk==='A' ? 'Ases' : (pk+'s');
+    switch(action){
+      case 'split': return `Dividir os ${label} cria duas mãos com chance melhor contra o ${dealerRank} do dealer do que manter uma mão de ${total}.`;
+      case 'stand': return `Com o par (${total}) parar preserva uma mão sólida contra o ${dealerRank} do dealer.`;
+      case 'double': return `O par soma ${total}, uma base forte para dobrar contra o ${dealerRank} do dealer.`;
+      case 'hit': return `Contra o ${dealerRank} do dealer esse par não justifica dividir nem parar — pedir carta é o correto.`;
+    }
+  }
+  switch(action){
+    case 'hit': return `Com ${total}${soft?' (mão suave)':''} contra o ${dealerRank} do dealer, pedir carta é a jogada de maior valor esperado.`;
+    case 'stand': return `Com ${total}${soft?' (mão suave)':''}, parar contra o ${dealerRank} do dealer evita o risco de piorar a mão.`;
+    case 'double': return `${total}${soft?' suave':''} contra o ${dealerRank} do dealer é uma ótima chance de dobrar a aposta.`;
+    case 'surrender': return `Contra o ${dealerRank} do dealer, suas chances com ${total} são tão baixas que desistir de metade da aposta é o melhor resultado esperado.`;
+  }
+  return '';
+}
+function explainAction(cards, dealerRank, action, deviation){
+  if (deviation){
+    const dir = deviation.cmp==='>=' ? 'maior ou igual a' : 'menor ou igual a';
+    return `<span class="deviation-tag">Desvio pela contagem</span> ${deviation.desc}: vira <b>${ACTION_LABELS[action]}</b> quando a contagem verdadeira é ${dir} ${deviation.tc}.`;
+  }
+  return explainBasic(cards, dealerRank, action);
+}
+function getValidActions(cards, isFirstDecision, fromSplit, canSplitMore){
+  const canDouble = cards.length===2 && isFirstDecision;
+  const canSurrender = cards.length===2 && isFirstDecision && !fromSplit;
+  const canSplit = cards.length===2 && isFirstDecision && !!pairKey(cards) && canSplitMore;
+  return {hit:true, stand:true, double:canDouble, split:canSplit, surrender:canSurrender};
+}
+function renderActionButtons(container, valid){
+  container.querySelectorAll('.action-btn').forEach(btn=>{
+    const v = btn.dataset.value;
+    btn.disabled = !valid[v];
+    btn.classList.remove('correct-mark','wrong-mark');
+  });
+}
+
+/* ---------- NAV ---------- */
+function switchPanel(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.panel===name));
+}
+
+/* ---------- HISTORY / STATS ---------- */
+function loadHistory(){
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch(e){ return []; }
+}
+function saveHistoryEntry(entry){
+  entry.date = new Date().toISOString();
+  const arr = loadHistory();
+  arr.push(entry);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+  renderStats();
+}
+let statsChartInstance = null;
+function renderStats(){
+  const history = loadHistory();
+  document.getElementById('statsTotalSessions').textContent = history.length;
+  const countEntries = history.filter(h=>h.countPct!=null);
+  const playEntries = history.filter(h=>h.playPct!=null);
+  const avg = arr => arr.length ? (arr.reduce((s,v)=>s+v,0)/arr.length).toFixed(0)+'%' : '—';
+  document.getElementById('statsAvgCount').textContent = avg(countEntries.map(h=>h.countPct));
+  document.getElementById('statsAvgPlay').textContent = avg(playEntries.map(h=>h.playPct));
+
+  const listEl = document.getElementById('statsHistoryList');
+  if (!history.length){
+    listEl.innerHTML = '<div class="muted center">Nenhuma sessão salva ainda.</div>';
+  } else {
+    listEl.innerHTML = history.slice().reverse().slice(0,20).map(h=>{
+      const d = new Date(h.date);
+      const dateStr = d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      const typeLabel = {drill:'Contagem', advisor:'Assistente', quiz:'Quiz Estratégia', mesa:'Mesa'}[h.type] || h.type;
+      const pct = h.countPct!=null ? h.countPct+'%' : (h.playPct!=null ? h.playPct+'%' : (h.units!=null ? h.units.toFixed(1)+'u' : ''));
+      return `<div class="history-item"><span class="tp">${dateStr} · ${typeLabel}</span><b>${pct}</b></div>`;
+    }).join('');
+  }
+
+  const canvas = document.getElementById('statsChart');
+  if (typeof Chart === 'undefined' || !canvas) return;
+  const points = history.map((h,i)=>({
+    x: i+1,
+    y: h.countPct!=null ? h.countPct : h.playPct,
+    label: {drill:'Contagem', advisor:'Assistente', quiz:'Quiz', mesa:'Mesa'}[h.type] || h.type
+  })).filter(p=>p.y!=null);
+  if (statsChartInstance) statsChartInstance.destroy();
+  statsChartInstance = new Chart(canvas.getContext('2d'), {
+    type:'line',
+    data:{
+      labels: points.map(p=>p.x),
+      datasets:[{
+        label:'Precisão (%)',
+        data: points.map(p=>p.y),
+        borderColor:'#d4af37',
+        backgroundColor:'rgba(212,175,55,.15)',
+        tension:.25, fill:true, pointRadius:3
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{labels:{color:'#e9eef4'}}},
+      scales:{
+        x:{ticks:{color:'#8a97a8'}, grid:{color:'#26313f'}},
+        y:{min:0, max:100, ticks:{color:'#8a97a8'}, grid:{color:'#26313f'}}
+      }
+    }
+  });
+}
+
+/* ==================== DRILL ==================== */
+const drillState = {numDecks:1, speed:1000, count:20, shoe:[], idx:0, running:0, timer:null, active:false, guess:0};
+function renderDrillConfigButtons(){
+  const decksRow = document.getElementById('drillDecksRow');
+  decksRow.innerHTML = [1,2,6,8].map(n=>`<button class="btn small ${n===drillState.numDecks?'selected':''}" data-action="drillDecks" data-value="${n}">${n} baralho${n>1?'s':''}</button>`).join('');
+  const speedRow = document.getElementById('drillSpeedRow');
+  speedRow.innerHTML = [[500,'0.5s'],[1000,'1s'],[2000,'2s'],[3000,'3s']].map(([v,l])=>`<button class="btn small ${v===drillState.speed?'selected':''}" data-action="drillSpeed" data-value="${v}">${l}</button>`).join('');
+  const countRow = document.getElementById('drillCountRow');
+  countRow.innerHTML = [10,20,30,52].map(n=>`<button class="btn small ${n===drillState.count?'selected':''}" data-action="drillCount" data-value="${n}">${n} cartas</button>`).join('');
+}
+function drillStart(){
+  drillState.shoe = makeShoe(drillState.numDecks);
+  if (drillState.shoe.length < drillState.count) drillState.shoe = makeShoe(Math.max(drillState.numDecks,2));
+  drillState.idx = 0;
+  drillState.running = 0;
+  drillState.guess = 0;
+  drillState.active = true;
+  document.getElementById('drillConfig').style.display='none';
+  document.getElementById('drillPlayArea').style.display='block';
+  document.getElementById('drillStopRow').style.display='block';
+  document.getElementById('drillGuessSection').style.display='none';
+  document.getElementById('drillResult').style.display='none';
+  drillStep();
+}
+function drillStep(){
+  if (!drillState.active) return;
+  if (drillState.idx >= drillState.count){ drillFinish(); return; }
+  const card = drillState.shoe[drillState.idx];
+  drillState.running += hiLoValue(card.rank);
+  document.getElementById('drillCardDisplay').innerHTML = cardHTML(card);
+  document.getElementById('drillProgress').textContent = `Carta ${drillState.idx+1}/${drillState.count}`;
+  drillState.idx++;
+  drillState.timer = setTimeout(drillStep, drillState.speed);
+}
+function drillStop(){
+  drillState.active = false;
+  clearTimeout(drillState.timer);
+  drillFinish();
+}
+function drillFinish(){
+  drillState.active = false;
+  clearTimeout(drillState.timer);
+  document.getElementById('drillStopRow').style.display='none';
+  document.getElementById('drillCardDisplay').innerHTML = '<div class="muted">Sequência concluída</div>';
+  document.getElementById('drillGuessSection').style.display='block';
+  drillState.guess = 0;
+  updateDrillGuessDisplay();
+}
+function updateDrillGuessDisplay(){
+  const el = document.getElementById('drillGuessValue');
+  el.textContent = (drillState.guess>0?'+':'')+drillState.guess;
+  el.className = 'big-number ' + (drillState.guess>0?'pos':drillState.guess<0?'neg':'zero');
+}
+function drillConfirmGuess(){
+  const correct = drillState.guess === drillState.running;
+  const box = document.getElementById('drillResult');
+  box.style.display='block';
+  box.innerHTML = `
+    <div class="feedback show ${correct?'correct':'wrong'}">
+      <div class="fbtitle">${correct?'✅ Contagem correta!':'❌ Contagem incorreta'}</div>
+      <div>Sua contagem: <b>${(drillState.guess>0?'+':'')+drillState.guess}</b> · Contagem real: <b>${(drillState.running>0?'+':'')+drillState.running}</b></div>
+    </div>
+    <button class="btn primary" style="width:100%;margin-top:10px;" data-action="drillNew">🔁 Novo Treino</button>
+  `;
+  document.getElementById('drillGuessSection').style.display='none';
+  saveHistoryEntry({type:'drill', countPct: correct?100:0, speed:drillState.speed, decks:drillState.numDecks, cards:drillState.count});
+}
+function drillNewConfig(){
+  document.getElementById('drillConfig').style.display='block';
+  document.getElementById('drillPlayArea').style.display='none';
+  document.getElementById('drillResult').style.display='none';
+}
+
+/* ==================== MANUAL COUNT (shared Calc + Advisor) ==================== */
+const manualCount = {running:0, decksRemaining:6, spread:'conservative'};
+function manualTrueCount(){ return manualCount.running / manualCount.decksRemaining; }
+function computeBet(tc, spread){
+  const max = spread==='aggressive' ? 12 : 4;
+  if (tc <= 1) return 1;
+  return Math.min(Math.round(tc), max);
+}
+function renderCalc(){
+  const rEl = document.getElementById('calcRunning');
+  rEl.textContent = (manualCount.running>0?'+':'')+manualCount.running;
+  rEl.className = 'big-number ' + (manualCount.running>0?'pos':manualCount.running<0?'neg':'zero');
+  const decksRow = document.getElementById('calcDecksRow');
+  decksRow.innerHTML = [1,2,3,4,5,6,7,8].map(n=>`<button class="btn small ${n===manualCount.decksRemaining?'selected':''}" data-action="calcDecks" data-value="${n}">${n}</button>`).join('');
+  const tc = manualTrueCount();
+  const tcEl = document.getElementById('calcTrueCount');
+  tcEl.textContent = fmtTC(tc);
+  tcEl.className = 'big-number ' + (tc>0?'pos':tc<0?'neg':'zero');
+  document.querySelectorAll('[data-action="calcSpread"]').forEach(b=>b.classList.toggle('selected', b.dataset.value===manualCount.spread));
+  const bet = computeBet(tc, manualCount.spread);
+  document.getElementById('calcBetSuggestion').textContent = bet + (bet===1?' unidade':' unidades');
+  updateAdvisorTrueCountDisplay();
+}
+function updateAdvisorTrueCountDisplay(){
+  const el = document.getElementById('advisorTrueCount');
+  if (!el) return;
+  const tc = manualTrueCount();
+  el.textContent = fmtTC(tc);
+  el.className = 'big-number ' + (tc>0?'pos':tc<0?'neg':'zero');
+}
+
+/* ==================== ADVISOR ==================== */
+const advisorState = {player:[], dealer:null, answered:false, score:{correct:0,total:0}};
+function advisorNewHand(){
+  let player;
+  do {
+    player = [randomCard(), randomCard()];
+  } while (handTotal(player).total===21);
+  advisorState.player = player;
+  advisorState.dealer = randomCard();
+  advisorState.answered = false;
+  renderAdvisor();
+}
+function renderAdvisor(){
+  document.getElementById('advisorDealerHand').innerHTML = advisorState.dealer ? cardHTML(advisorState.dealer) : '<div class="muted">Toque em "Nova Mão"</div>';
+  document.getElementById('advisorPlayerHand').innerHTML = advisorState.player.length ? advisorState.player.map(cardHTML).join('') : '';
+  if (advisorState.player.length){
+    const {total, soft} = handTotal(advisorState.player);
+    document.getElementById('advisorPlayerTotal').textContent = `Total: ${total}${soft?' (suave)':''}`;
+  } else {
+    document.getElementById('advisorPlayerTotal').textContent = '';
+  }
+  updateAdvisorTrueCountDisplay();
+  const fb = document.getElementById('advisorFeedback');
+  fb.className = 'feedback'; fb.innerHTML='';
+  const valid = advisorState.player.length ? getValidActions(advisorState.player, true, false, true) : {hit:false,stand:false,double:false,split:false,surrender:false};
+  renderActionButtons(document.getElementById('advisorActions'), valid);
+  updateAdvisorScore();
+}
+function updateAdvisorScore(){
+  document.getElementById('advisorScore').textContent = `${advisorState.score.correct}/${advisorState.score.total}`;
+  document.getElementById('advisorPct').textContent = advisorState.score.total ? Math.round(advisorState.score.correct/advisorState.score.total*100)+'%' : '—';
+}
+function advisorHandleAction(action){
+  if (!advisorState.player.length || advisorState.answered) return;
+  advisorState.answered = true;
+  const valid = getValidActions(advisorState.player, true, false, true);
+  const tc = manualTrueCount();
+  const {action:correct, deviation} = getAdjustedAction(advisorState.player, advisorState.dealer.rank, tc, valid);
+  const isCorrect = action === correct;
+  advisorState.score.total++;
+  if (isCorrect) advisorState.score.correct++;
+  const fb = document.getElementById('advisorFeedback');
+  fb.className = 'feedback show ' + (isCorrect?'correct':'wrong');
+  fb.innerHTML = `<div class="fbtitle">${isCorrect?'✅ Jogada correta!':'❌ Jogada errada — o certo era '+ACTION_LABELS[correct]}</div><div>${explainAction(advisorState.player, advisorState.dealer.rank, correct, deviation)}</div>`;
+  document.querySelectorAll('#advisorActions .action-btn').forEach(btn=>{
+    if (btn.dataset.value===correct) btn.classList.add('correct-mark');
+    else if (btn.dataset.value===action) btn.classList.add('wrong-mark');
+  });
+  updateAdvisorScore();
+}
+function advisorReveal(){
+  if (!advisorState.player.length || advisorState.answered) return;
+  const valid = getValidActions(advisorState.player, true, false, true);
+  const tc = manualTrueCount();
+  const {action:correct, deviation} = getAdjustedAction(advisorState.player, advisorState.dealer.rank, tc, valid);
+  const fb = document.getElementById('advisorFeedback');
+  fb.className = 'feedback show correct';
+  fb.innerHTML = `<div class="fbtitle">💡 Jogada recomendada: ${ACTION_LABELS[correct]}</div><div>${explainAction(advisorState.player, advisorState.dealer.rank, correct, deviation)}</div>`;
+  document.querySelectorAll('#advisorActions .action-btn').forEach(btn=>{
+    btn.classList.toggle('correct-mark', btn.dataset.value===correct);
+  });
+}
+function advisorRandomCount(){
+  manualCount.decksRemaining = 1+Math.floor(Math.random()*8);
+  manualCount.running = Math.floor(Math.random()*41)-20;
+  renderCalc();
+  updateAdvisorTrueCountDisplay();
+}
+function advisorResetSession(){
+  if (advisorState.score.total>0){
+    saveHistoryEntry({type:'advisor', playPct: Math.round(advisorState.score.correct/advisorState.score.total*100)});
+  }
+  advisorState.score = {correct:0,total:0};
+  updateAdvisorScore();
+}
+
+/* ==================== STRATEGY TABLE + QUIZ ==================== */
+let stratTab = 'hard';
+function actClass(code){
+  if (code==='H') return 'act-h';
+  if (code==='S') return 'act-s';
+  if (code==='D'||code==='Ds') return 'act-d';
+  if (code==='P') return 'act-p';
+  if (code==='Rh') return 'act-r';
+  return '';
+}
+function actShort(code){
+  return {H:'H',S:'S',D:'D',Ds:'Ds',P:'P',Rh:'R'}[code] || code;
+}
+function codeExplain(code){
+  switch(code){
+    case 'H': return 'Pedir carta é a opção com maior valor esperado aqui.';
+    case 'S': return 'Parar preserva a mão; pedir carta arrisca mais do que ganha.';
+    case 'D': return 'Dobrar aproveita a vantagem matemática desta combinação.';
+    case 'Ds': return 'Dobre se puder; caso não seja permitido, parar já é uma boa mão.';
+    case 'P': return 'Dividir o par cria duas mãos mais fortes do que uma só.';
+    case 'Rh': return 'Desista se puder; sem essa opção, peça carta como último recurso.';
+  }
+  return '';
+}
+function renderStrategyTable(){
+  document.querySelectorAll('[data-action="stratTab"]').forEach(b=>b.classList.toggle('selected', b.dataset.value===stratTab));
+  const data = stratTab==='hard' ? HARD : stratTab==='soft' ? SOFT : PAIRS;
+  const rows = stratTab==='hard' ? Object.keys(HARD).map(Number).sort((a,b)=>a-b).filter(t=>t<=17)
+    : stratTab==='soft' ? Object.keys(SOFT).map(Number).sort((a,b)=>a-b)
+    : ['2','3','4','5','6','7','8','9','10','A'];
+  let html = '<thead><tr><th></th>' + COLS.map(c=>`<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+  rows.forEach(row=>{
+    const rowLabel = stratTab==='hard' ? row : stratTab==='soft' ? `A,${row-11}` : `${row},${row}`;
+    html += `<tr><td class="rowhead">${rowLabel}</td>`;
+    COLS.forEach((col,ci)=>{
+      const code = data[row][ci];
+      html += `<td class="${actClass(code)}" data-action="stratCell" data-row="${row}" data-col="${col}" data-code="${code}">${actShort(code)}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('stratTable').innerHTML = html;
+}
+function stratCellTap(row, col, code){
+  const box = document.getElementById('stratExplainBox');
+  box.style.display='block';
+  const rowLabel = stratTab==='hard' ? row : stratTab==='soft' ? `A,${row-11} (suave ${row})` : `par de ${row}`;
+  box.innerHTML = `<div class="label">Mão ${rowLabel} contra ${col}</div><div style="font-size:1.4rem;font-weight:800;margin:6px 0;">${ACTION_LABELS[{H:'hit',S:'stand',D:'double',Ds:'double',P:'split',Rh:'surrender'}[code]]}</div><div class="muted">${codeExplain(code)}</div>`;
+}
+
+const quizState = {player:[], dealer:null, answered:false, score:{correct:0,total:0}, active:false};
+function quizGenerateHand(){
+  const roll = Math.random();
+  if (roll < 0.3){
+    const keys = Object.keys(PAIRS);
+    const rank = keys[Math.floor(Math.random()*keys.length)];
+    const mk = () => rank==='10' ? ['10','J','Q','K'][Math.floor(Math.random()*4)] : rank;
+    return [{rank:mk(), suit:'♠', color:'black'}, {rank:mk(), suit:'♥', color:'red'}];
+  } else if (roll < 0.65){
+    const total = 13 + Math.floor(Math.random()*8);
+    const otherVal = total - 11;
+    return [{rank:'A', suit:'♠', color:'black'}, {rank:String(otherVal), suit:'♥', color:'red'}];
+  } else {
+    for (let tries=0; tries<30; tries++){
+      const total = 8 + Math.floor(Math.random()*13);
+      const vals = ['2','3','4','5','6','7','8','9','10'];
+      const r1 = vals[Math.floor(Math.random()*vals.length)];
+      const v1 = blackjackValue(r1);
+      const v2 = total - v1;
+      if (v2>=2 && v2<=10){
+        const r2 = v2===10 ? '10' : String(v2);
+        if (r1===r2 && Math.random()<0.85) continue;
+        return [{rank:r1, suit:'♠', color:'black'}, {rank:r2, suit:'♥', color:'red'}];
+      }
+    }
+    return [{rank:'10', suit:'♠', color:'black'}, {rank:'6', suit:'♥', color:'red'}];
+  }
+}
+function quizNext(){
+  quizState.player = quizGenerateHand();
+  quizState.dealer = randomCard();
+  quizState.answered = false;
+  renderQuiz();
+}
+function renderQuiz(){
+  document.getElementById('quizDealerHand').innerHTML = cardHTML(quizState.dealer);
+  document.getElementById('quizPlayerHand').innerHTML = quizState.player.map(cardHTML).join('');
+  const {total, soft} = handTotal(quizState.player);
+  document.getElementById('quizPlayerTotal').textContent = `Total: ${total}${soft?' (suave)':''}`;
+  const fb = document.getElementById('quizFeedback');
+  fb.className='feedback'; fb.innerHTML='';
+  const valid = getValidActions(quizState.player, true, false, true);
+  renderActionButtons(document.getElementById('quizActions'), valid);
+  document.getElementById('quizScore').textContent = `${quizState.score.correct}/${quizState.score.total}`;
+  document.getElementById('quizPct').textContent = quizState.score.total ? Math.round(quizState.score.correct/quizState.score.total*100)+'%' : '—';
+}
+function quizHandleAction(action){
+  if (quizState.answered) return;
+  quizState.answered = true;
+  const valid = getValidActions(quizState.player, true, false, true);
+  const correct = getBasicAction(quizState.player, quizState.dealer.rank, valid);
+  const isCorrect = action===correct;
+  quizState.score.total++;
+  if (isCorrect) quizState.score.correct++;
+  const fb = document.getElementById('quizFeedback');
+  fb.className = 'feedback show ' + (isCorrect?'correct':'wrong');
+  fb.innerHTML = `<div class="fbtitle">${isCorrect?'✅ Correto!':'❌ Errado — o certo era '+ACTION_LABELS[correct]}</div><div>${explainBasic(quizState.player, quizState.dealer.rank, correct)}</div>`;
+  document.querySelectorAll('#quizActions .action-btn').forEach(btn=>{
+    if (btn.dataset.value===correct) btn.classList.add('correct-mark');
+    else if (btn.dataset.value===action) btn.classList.add('wrong-mark');
+  });
+  document.getElementById('quizScore').textContent = `${quizState.score.correct}/${quizState.score.total}`;
+  document.getElementById('quizPct').textContent = Math.round(quizState.score.correct/quizState.score.total*100)+'%';
+}
+function quizToggle(){
+  quizState.active = !quizState.active;
+  document.getElementById('stratQuizArea').style.display = quizState.active ? 'block' : 'none';
+  document.getElementById('stratQuizBtn').textContent = quizState.active ? '⏹ Encerrar Quiz' : '🧠 Iniciar Modo Quiz';
+  if (quizState.active){
+    quizState.score = {correct:0,total:0};
+    quizNext();
+  }
+}
+function quizReset(){
+  if (quizState.score.total>0){
+    saveHistoryEntry({type:'quiz', playPct: Math.round(quizState.score.correct/quizState.score.total*100)});
+  }
+  quizState.active = false;
+  document.getElementById('stratQuizArea').style.display = 'none';
+  document.getElementById('stratQuizBtn').textContent = '🧠 Iniciar Modo Quiz';
+}
+
+/* ==================== TABLE SIMULATOR ==================== */
+const tableState = {
+  numDecks:6, penetration:0.75, shoe:[], totalCards:0, running:0, cardsDealt:0,
+  countVisible:false, active:false, hands:[], dealer:{cards:[], hole:null, holeRevealed:false},
+  currentHandIndex:0, betUnits:1, spread:'conservative',
+  stats:{hands:0, correctDecisions:0, totalDecisions:0, units:0}
+};
+function renderTableConfigButtons(){
+  document.getElementById('tableDecksRow').innerHTML = [1,2,6,8].map(n=>`<button class="btn small ${n===tableState.numDecks?'selected':''}" data-action="tableDecks" data-value="${n}">${n} baralho${n>1?'s':''}</button>`).join('');
+  document.getElementById('tablePenetrationRow').innerHTML = [50,65,75,85].map(p=>`<button class="btn small ${p===Math.round(tableState.penetration*100)?'selected':''}" data-action="tablePenetration" data-value="${p}">${p}%</button>`).join('');
+}
+function tableTrueCount(){
+  const decksRemaining = Math.max(0.5, (tableState.shoe.length)/52);
+  return tableState.running / decksRemaining;
+}
+function tableDrawCard(countIt){
+  const c = tableState.shoe.pop();
+  tableState.cardsDealt++;
+  if (countIt) tableState.running += hiLoValue(c.rank);
+  return c;
+}
+function tableCheckReshuffle(){
+  if (tableState.shoe.length <= tableState.totalCards*(1-tableState.penetration)){
+    tableState.shoe = makeShoe(tableState.numDecks);
+    tableState.totalCards = tableState.shoe.length;
+    tableState.running = 0;
+    tableState.cardsDealt = 0;
+    return true;
+  }
+  return false;
+}
+function tableStart(){
+  tableState.shoe = makeShoe(tableState.numDecks);
+  tableState.totalCards = tableState.shoe.length;
+  tableState.running = 0;
+  tableState.cardsDealt = 0;
+  tableState.active = true;
+  tableState.stats = {hands:0, correctDecisions:0, totalDecisions:0, units:0};
+  document.getElementById('tableConfig').style.display='none';
+  document.getElementById('tableGameArea').style.display='block';
+  document.getElementById('tableResultBox').style.display='none';
+  document.getElementById('tableDealerHand').innerHTML='';
+  document.getElementById('tablePlayerHand').innerHTML='';
+  renderTableCount();
+  renderTableStats();
+}
+function renderTableCount(){
+  document.getElementById('tableRunning').textContent = (tableState.running>0?'+':'')+tableState.running;
+  const tc = tableTrueCount();
+  document.getElementById('tableTrueCount').textContent = fmtTC(tc);
+}
+function tableToggleCount(){
+  tableState.countVisible = !tableState.countVisible;
+  document.getElementById('tableCountBox').style.display = tableState.countVisible ? 'block' : 'none';
+  document.getElementById('tableToggleBtn').textContent = tableState.countVisible ? '🙈 Esconder Contagem' : '👁 Mostrar Contagem';
+}
+function tableDeal(){
+  if (!tableState.active) return;
+  tableCheckReshuffle();
+  const tc = tableTrueCount();
+  tableState.betUnits = computeBet(tc, tableState.spread);
+  tableState.dealer = {cards:[tableDrawCard(true)], hole:tableDrawCard(false), holeRevealed:false};
+  const hand1 = [tableDrawCard(true), tableDrawCard(true)];
+  tableState.hands = [{cards:hand1, doubled:false, surrendered:false, busted:false, standing:false, fromSplit:false, result:null}];
+  tableState.currentHandIndex = 0;
+  document.getElementById('tableResultBox').style.display='none';
+  document.getElementById('tableFeedback').className='feedback';
+  document.getElementById('tableDealBtn').style.display='none';
+  renderTableCount();
+  if (!tableCheckInitialResolution()) renderTableHand();
+  else renderTableHand(true);
+}
+function tableCheckInitialResolution(){
+  const dealerUp = tableState.dealer.cards[0];
+  const mayHaveBJ = ['10','J','Q','K','A'].includes(dealerUp.rank);
+  let dealerBJ = false;
+  if (mayHaveBJ) dealerBJ = handTotal([dealerUp, tableState.dealer.hole]).total===21;
+  const playerBJ = handTotal(tableState.hands[0].cards).total===21;
+  if (playerBJ || dealerBJ){
+    tableState.dealer.cards.push(tableState.dealer.hole);
+    tableState.running += hiLoValue(tableState.dealer.hole.rank);
+    tableState.dealer.holeRevealed = true;
+    const hand = tableState.hands[0];
+    hand.standing = true;
+    const bet = tableState.betUnits;
+    if (playerBJ && dealerBJ) hand.result='push';
+    else if (playerBJ){ tableState.stats.units += bet*1.5; hand.result='blackjack'; }
+    else { tableState.stats.units -= bet; hand.result='lose'; }
+    tableState.stats.hands++;
+    renderTableStats();
+    renderTableCount();
+    renderTableResolution();
+    return true;
+  }
+  return false;
+}
+function renderTableHand(skipActions){
+  document.getElementById('tableDealerHand').innerHTML = tableState.dealer.holeRevealed
+    ? tableState.dealer.cards.map(cardHTML).join('')
+    : cardHTML(tableState.dealer.cards[0]) + '<div class="card-back"></div>';
+  document.getElementById('tableDealerTotal').textContent = tableState.dealer.holeRevealed ? `Total: ${handTotal(tableState.dealer.cards).total}` : '';
+  const hand = tableState.hands[tableState.currentHandIndex];
+  const label = tableState.hands.length>1 ? `Mão ${tableState.currentHandIndex+1} de ${tableState.hands.length}` : 'Sua Mão';
+  document.getElementById('tableHandLabel').textContent = label;
+  document.getElementById('tablePlayerHand').innerHTML = hand.cards.map(cardHTML).join('');
+  const {total, soft} = handTotal(hand.cards);
+  document.getElementById('tablePlayerTotal').textContent = `Total: ${total}${soft?' (suave)':''}`;
+  document.getElementById('tableBetInfo').textContent = `Aposta: ${tableState.betUnits} unidade${tableState.betUnits>1?'s':''}${tableState.countVisible?' · TC '+fmtTC(tableTrueCount()):''}`;
+  if (skipActions) return;
+  const valid = getValidActions(hand.cards, hand.cards.length===2 && !hand.doubled, hand.fromSplit, tableState.hands.length<2);
+  renderActionButtons(document.getElementById('tableActions'), valid);
+  document.getElementById('tableActions').style.display='grid';
+}
+function tableHandleAction(action){
+  const hand = tableState.hands[tableState.currentHandIndex];
+  if (!hand || hand.standing) return;
+  const valid = getValidActions(hand.cards, hand.cards.length===2, hand.fromSplit, tableState.hands.length<2);
+  const tc = tableTrueCount();
+  const {action:correct, deviation} = getAdjustedAction(hand.cards, tableState.dealer.cards[0].rank, tc, valid);
+  const isCorrect = action===correct;
+  tableState.stats.totalDecisions++;
+  if (isCorrect) tableState.stats.correctDecisions++;
+  const fb = document.getElementById('tableFeedback');
+  fb.className = 'feedback show ' + (isCorrect?'correct':'wrong');
+  fb.innerHTML = `<div class="fbtitle">${isCorrect?'✅ Jogada correta!':'❌ Errado — o certo era '+ACTION_LABELS[correct]}</div><div>${explainAction(hand.cards, tableState.dealer.cards[0].rank, correct, deviation)}</div>`;
+  document.querySelectorAll('#tableActions .action-btn').forEach(btn=>{
+    if (btn.dataset.value===correct) btn.classList.add('correct-mark');
+    else if (btn.dataset.value===action) btn.classList.add('wrong-mark');
+  });
+  renderTableStats();
+
+  if (action==='hit'){
+    hand.cards.push(tableDrawCard(true));
+    if (handTotal(hand.cards).bust){ hand.busted=true; hand.standing=true; }
+  } else if (action==='stand'){
+    hand.standing = true;
+  } else if (action==='double'){
+    hand.doubled = true;
+    hand.cards.push(tableDrawCard(true));
+    hand.standing = true;
+  } else if (action==='surrender'){
+    hand.surrendered = true;
+    hand.standing = true;
+  } else if (action==='split'){
+    const c1 = hand.cards[0], c2 = hand.cards[1];
+    const wasAce = c1.rank==='A';
+    const h1 = {cards:[c1, tableDrawCard(true)], doubled:false, surrendered:false, busted:false, standing:wasAce, fromSplit:true, result:null};
+    const h2 = {cards:[c2, tableDrawCard(true)], doubled:false, surrendered:false, busted:false, standing:wasAce, fromSplit:true, result:null};
+    tableState.hands.splice(tableState.currentHandIndex, 1, h1, h2);
+  }
+  renderTableCount();
+  setTimeout(()=>tableAdvance(), 900);
+}
+function tableAdvance(){
+  const hand = tableState.hands[tableState.currentHandIndex];
+  if (!hand.standing){ renderTableHand(); return; }
+  if (tableState.currentHandIndex < tableState.hands.length-1){
+    tableState.currentHandIndex++;
+    document.getElementById('tableFeedback').className='feedback';
+    renderTableHand();
+    return;
+  }
+  tableResolveDealer();
+}
+function tableResolveDealer(){
+  if (!tableState.dealer.holeRevealed){
+    tableState.dealer.cards.push(tableState.dealer.hole);
+    tableState.running += hiLoValue(tableState.dealer.hole.rank);
+    tableState.dealer.holeRevealed = true;
+  }
+  const anyLive = tableState.hands.some(h=>!h.busted && !h.surrendered);
+  if (anyLive){
+    while (true){
+      const {total, soft} = handTotal(tableState.dealer.cards);
+      if (total < 17){ tableState.dealer.cards.push(tableDrawCard(true)); continue; }
+      break;
+    }
+  }
+  const dealerTotal = handTotal(tableState.dealer.cards).total;
+  const dealerBust = dealerTotal > 21;
+  tableState.hands.forEach(hand=>{
+    const bet = tableState.betUnits * (hand.doubled?2:1);
+    if (hand.surrendered){ tableState.stats.units -= 0.5*tableState.betUnits; hand.result='surrender'; return; }
+    if (hand.busted){ tableState.stats.units -= bet; hand.result='lose'; return; }
+    const playerTotal = handTotal(hand.cards).total;
+    if (dealerBust){ tableState.stats.units += bet; hand.result='win'; return; }
+    if (playerTotal>dealerTotal){ tableState.stats.units += bet; hand.result='win'; }
+    else if (playerTotal<dealerTotal){ tableState.stats.units -= bet; hand.result='lose'; }
+    else { hand.result='push'; }
+  });
+  tableState.stats.hands++;
+  renderTableStats();
+  renderTableCount();
+  renderTableHand(true);
+  renderTableResolution();
+}
+function renderTableResolution(){
+  document.getElementById('tableActions').style.display='none';
+  const box = document.getElementById('tableResultBox');
+  box.style.display='block';
+  const pillClass = r => r==='win'||r==='blackjack' ? 'win' : r==='push' ? 'push' : 'lose';
+  const pillText = {win:'Ganhou', lose:'Perdeu', push:'Empate', blackjack:'Blackjack!', surrender:'Desistiu'};
+  box.innerHTML = '<div class="label">Resultado da Mão</div>' + tableState.hands.map((h,i)=>{
+    const label = tableState.hands.length>1 ? `Mão ${i+1}` : 'Resultado';
+    return `<div class="result-line"><span>${label} (${handTotal(h.cards).total})</span><span class="pill ${pillClass(h.result)}">${pillText[h.result]}</span></div>`;
+  }).join('');
+  document.getElementById('tableDealBtn').style.display='block';
+}
+function renderTableStats(){
+  document.getElementById('tableHandsPlayed').textContent = tableState.stats.hands;
+  document.getElementById('tablePlayPct').textContent = tableState.stats.totalDecisions ? Math.round(tableState.stats.correctDecisions/tableState.stats.totalDecisions*100)+'%' : '—';
+  const u = tableState.stats.units;
+  const uEl = document.getElementById('tableUnits');
+  uEl.textContent = (u>0?'+':'')+u.toFixed(1);
+  uEl.style.color = u>0 ? 'var(--accent)' : u<0 ? 'var(--bad)' : 'var(--text)';
+}
+function tableResetSession(){
+  if (tableState.stats.hands>0){
+    saveHistoryEntry({type:'mesa', playPct: tableState.stats.totalDecisions ? Math.round(tableState.stats.correctDecisions/tableState.stats.totalDecisions*100) : null, units: tableState.stats.units});
+  }
+  tableState.active = false;
+  document.getElementById('tableConfig').style.display='block';
+  document.getElementById('tableGameArea').style.display='none';
+}
+
+/* ==================== GLOBAL EVENT DELEGATION ==================== */
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const value = btn.dataset.value;
+
+  switch(action){
+    case 'nav': switchPanel(btn.dataset.panel); break;
+
+    case 'drillDecks': drillState.numDecks = Number(value); renderDrillConfigButtons(); break;
+    case 'drillSpeed': drillState.speed = Number(value); renderDrillConfigButtons(); break;
+    case 'drillCount': drillState.count = Number(value); renderDrillConfigButtons(); break;
+    case 'drillStart': drillStart(); break;
+    case 'drillStop': drillStop(); break;
+    case 'drillGuessPlus': drillState.guess++; updateDrillGuessDisplay(); break;
+    case 'drillGuessMinus': drillState.guess--; updateDrillGuessDisplay(); break;
+    case 'drillConfirmGuess': drillConfirmGuess(); break;
+    case 'drillNew': drillNewConfig(); break;
+
+    case 'advisorNewHand': advisorNewHand(); break;
+    case 'advisorAction': advisorHandleAction(value); break;
+    case 'advisorReveal': advisorReveal(); break;
+    case 'advisorRandomCount': advisorRandomCount(); break;
+    case 'advisorGotoCalc': switchPanel('calc'); break;
+    case 'advisorResetSession': advisorResetSession(); break;
+
+    case 'calcCount': manualCount.running += Number(value); renderCalc(); break;
+    case 'calcReset': manualCount.running = 0; renderCalc(); break;
+    case 'calcDecks': manualCount.decksRemaining = Number(value); renderCalc(); break;
+    case 'calcSpread': manualCount.spread = value; renderCalc(); break;
+
+    case 'stratTab': stratTab = value; renderStrategyTable(); document.getElementById('stratExplainBox').style.display='none'; break;
+    case 'stratCell': {
+      const cell = e.target.closest('td');
+      if (cell) stratCellTap(cell.dataset.row, cell.dataset.col, cell.dataset.code);
+      break;
+    }
+    case 'stratQuizToggle': quizToggle(); break;
+    case 'stratQuizAction': quizHandleAction(value); break;
+    case 'stratQuizNext': quizNext(); break;
+    case 'stratQuizReset': quizReset(); break;
+
+    case 'tableDecks': tableState.numDecks = Number(value); renderTableConfigButtons(); break;
+    case 'tablePenetration': tableState.penetration = Number(value)/100; renderTableConfigButtons(); break;
+    case 'tableStart': tableStart(); break;
+    case 'tableToggleCount': tableToggleCount(); break;
+    case 'tableDeal': tableDeal(); break;
+    case 'tableAction': tableHandleAction(value); break;
+    case 'tableResetSession': tableResetSession(); break;
+
+    case 'statsClear': localStorage.removeItem(HISTORY_KEY); renderStats(); break;
+  }
+});
+
+/* ==================== INIT ==================== */
+renderDrillConfigButtons();
+renderCalc();
+renderAdvisor();
+renderStrategyTable();
+renderTableConfigButtons();
+document.querySelectorAll('[data-action="calcSpread"]')[0]?.classList.add('selected');
+renderStats();
+</script>
 </body>
 </html>
