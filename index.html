@@ -330,6 +330,8 @@ table.strategy td.rowhead{background:var(--panel2);color:var(--text);cursor:defa
         <div class="btn-row" id="tableDecksRow"></div>
         <div class="label" style="margin-top:12px;">Penetração do sapato</div>
         <div class="btn-row" id="tablePenetrationRow"></div>
+        <div class="label" style="margin-top:12px;">Bet Spread</div>
+        <div class="btn-row" id="tableSpreadRow"></div>
         <button class="btn primary" style="margin-top:14px;width:100%;" data-action="tableStart">▶️ Iniciar Mesa</button>
       </div>
 
@@ -706,7 +708,7 @@ function explainBasic(cards, dealerRank, action){
 function explainAction(cards, dealerRank, action, deviation){
   if (deviation){
     const dir = deviation.cmp==='>=' ? 'maior ou igual a' : 'menor ou igual a';
-    return `<span class="deviation-tag">Desvio pela contagem</span> ${deviation.desc}: vira <b>${ACTION_LABELS[action]}</b> quando a contagem verdadeira é ${dir} ${deviation.tc}.`;
+    return `<span class="deviation-tag">Desvio pela contagem</span> ${deviation.desc}: vira <b>${ACTION_LABELS[action]}</b> quando a contagem verdadeira é ${dir} ${deviation.tc}. <span class="muted">(Números de referência para 6-8 baralhos S17 — podem variar um pouco conforme as regras exatas da mesa.)</span>`;
   }
   return explainBasic(cards, dealerRank, action);
 }
@@ -740,9 +742,11 @@ function loadHistory(){
 }
 function saveHistoryEntry(entry){
   entry.date = new Date().toISOString();
-  const arr = loadHistory();
-  arr.push(entry);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+  try {
+    const arr = loadHistory();
+    arr.push(entry);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+  } catch(e) { /* storage indisponível (modo privado, cota cheia) - ignora e segue */ }
   renderStats();
 }
 let statsChartInstance = null;
@@ -1115,18 +1119,22 @@ function quizReset(){
 const tableState = {
   numDecks:6, penetration:0.75, shoe:[], totalCards:0, running:0, cardsDealt:0,
   countVisible:false, active:false, hands:[], dealer:{cards:[], hole:null, holeRevealed:false},
-  currentHandIndex:0, betUnits:1, spread:'conservative',
+  currentHandIndex:0, betUnits:1, spread:'conservative', processing:false, actionTimer:null,
   stats:{hands:0, correctDecisions:0, totalDecisions:0, units:0}
 };
 function renderTableConfigButtons(){
   document.getElementById('tableDecksRow').innerHTML = [1,2,6,8].map(n=>`<button class="btn small ${n===tableState.numDecks?'selected':''}" data-action="tableDecks" data-value="${n}">${n} baralho${n>1?'s':''}</button>`).join('');
   document.getElementById('tablePenetrationRow').innerHTML = [50,65,75,85].map(p=>`<button class="btn small ${p===Math.round(tableState.penetration*100)?'selected':''}" data-action="tablePenetration" data-value="${p}">${p}%</button>`).join('');
+  document.getElementById('tableSpreadRow').innerHTML = [['conservative','🛡️ Conservador (1-4x)'],['aggressive','🔥 Agressivo (1-12x)']].map(([v,l])=>`<button class="btn small ${v===tableState.spread?'selected':''}" data-action="tableSpread" data-value="${v}">${l}</button>`).join('');
 }
 function tableTrueCount(){
   const decksRemaining = Math.max(0.5, (tableState.shoe.length)/52);
   return tableState.running / decksRemaining;
 }
 function tableDrawCard(countIt){
+  if (tableState.shoe.length === 0){
+    tableState.shoe = makeShoe(tableState.numDecks);
+  }
   const c = tableState.shoe.pop();
   tableState.cardsDealt++;
   if (countIt) tableState.running += hiLoValue(c.rank);
@@ -1143,6 +1151,8 @@ function tableCheckReshuffle(){
   return false;
 }
 function tableStart(){
+  clearTimeout(tableState.actionTimer);
+  tableState.processing = false;
   tableState.shoe = makeShoe(tableState.numDecks);
   tableState.totalCards = tableState.shoe.length;
   tableState.running = 0;
@@ -1226,7 +1236,9 @@ function renderTableHand(skipActions){
 }
 function tableHandleAction(action){
   const hand = tableState.hands[tableState.currentHandIndex];
-  if (!hand || hand.standing) return;
+  if (!hand || hand.standing || tableState.processing) return;
+  tableState.processing = true;
+  renderActionButtons(document.getElementById('tableActions'), {hit:false,stand:false,double:false,split:false,surrender:false});
   const valid = getValidActions(hand.cards, hand.cards.length===2, hand.fromSplit, tableState.hands.length<2);
   const tc = tableTrueCount();
   const {action:correct, deviation} = getAdjustedAction(hand.cards, tableState.dealer.cards[0].rank, tc, valid);
@@ -1262,7 +1274,7 @@ function tableHandleAction(action){
     tableState.hands.splice(tableState.currentHandIndex, 1, h1, h2);
   }
   renderTableCount();
-  setTimeout(()=>tableAdvance(), 900);
+  tableState.actionTimer = setTimeout(()=>{ tableState.processing = false; tableAdvance(); }, 900);
 }
 function tableAdvance(){
   const hand = tableState.hands[tableState.currentHandIndex];
@@ -1328,6 +1340,8 @@ function renderTableStats(){
   uEl.style.color = u>0 ? 'var(--accent)' : u<0 ? 'var(--bad)' : 'var(--text)';
 }
 function tableResetSession(){
+  clearTimeout(tableState.actionTimer);
+  tableState.processing = false;
   if (tableState.stats.hands>0){
     saveHistoryEntry({type:'mesa', playPct: tableState.stats.totalDecisions ? Math.round(tableState.stats.correctDecisions/tableState.stats.totalDecisions*100) : null, units: tableState.stats.units});
   }
@@ -1420,11 +1434,13 @@ function liveUndo(){
 function liveNewHand(){
   liveState.playerHand = [];
   liveState.dealerHand = [];
+  liveState.history = [];
   liveState.handsCount++;
   renderLive();
 }
 function liveSplitHand(){
   liveState.playerHand = [];
+  liveState.history = [];
   renderLive();
 }
 function liveNewShoe(){
@@ -1546,6 +1562,7 @@ document.addEventListener('click', (e)=>{
 
     case 'tableDecks': tableState.numDecks = Number(value); renderTableConfigButtons(); break;
     case 'tablePenetration': tableState.penetration = Number(value)/100; renderTableConfigButtons(); break;
+    case 'tableSpread': tableState.spread = value; renderTableConfigButtons(); break;
     case 'tableStart': tableStart(); break;
     case 'tableToggleCount': tableToggleCount(); break;
     case 'tableDeal': tableDeal(); break;
