@@ -1256,7 +1256,9 @@ function tableHandleAction(action){
 
   if (action==='hit'){
     hand.cards.push(tableDrawCard(true));
-    if (handTotal(hand.cards).bust){ hand.busted=true; hand.standing=true; }
+    const ht = handTotal(hand.cards);
+    if (ht.bust){ hand.busted=true; hand.standing=true; }
+    else if (ht.total===21){ hand.standing=true; }
   } else if (action==='stand'){
     hand.standing = true;
   } else if (action==='double'){
